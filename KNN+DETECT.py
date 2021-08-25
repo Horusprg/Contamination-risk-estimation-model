@@ -25,7 +25,7 @@ while True:
     background = cv.erode(background, kernel, iterations=1)
     background = cv.dilate(background, kernel, iterations=2)
 
-    contorno, _ = cv.findContours(background, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+    contorno, _ = cv.findContours(background, cv.RETR_CCOMP, cv.CHAIN_APPROX_SIMPLE)
 
     frameCopia = frame.copy()
     count = 0
