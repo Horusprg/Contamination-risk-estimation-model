@@ -1,0 +1,5 @@
+Encaminhamentos:
+1. Levantamento de literaturas sobre aglomeração + COVID + ML imagens
+2. Definir os cenários (Indoor, ou com controle de acesso)
+3. Modelo ML + Indicativo de ocupação (baseado em numero de pessoas + distânciamento)
+4. Fuzzy (Tx ocupação, Distanciamento entre as pessoas, Uso de máscara, medição de temperatura)
