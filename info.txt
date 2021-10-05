@@ -1,0 +1,42 @@
+
+PARA INICIAR O yoloV3-320.py é necessário baixar o arquivo rar: https://drive.google.com/file/d/1rJdvqmtzyzzRs8mkhCF5UFsgnIdmz2ks/view?usp=sharing
+e descompactá-lo na pasta yolo.
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Encaminhamentos: 
+1. Levantamento de literaturas sobre aglomeração + COVID + ML imagens.
+2. Definir os cenários (Indoor, ou com controle de acesso).
+3. Modelo ML + Indicativo de ocupação (baseado em numero de pessoas + distanciamento).
+4. Fuzzy (Tx ocupação, Distanciamento entre as pessoas, Uso de máscara, medição de temperatura).
+5. Pensar em que ambiente vai unir tudo (linguagens e ferramentas).
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+- Uma estrutura de monitoramento à distância social baseada em aprendizagem profunda para COVID-19--
+https://www.sciencedirect.com/science/article/pii/S2210670720307897
+
+
+- Combate ao Covid19: Detecção em tempo real de indivíduos sem máscara em ambiente escolar por meio de Deep Learning--
+https://sol.sbc.org.br/index.php/bresci/article/view/15796/15637
+
+
+- Análise comparativa de arquiteturas de rede neural convolucional para detecção de máscara facial COVID-19 em tempo real utilizando raspberryPi--
+https://iopscience.iop.org/article/10.1088/1742-6596/1969/1/012037/pdf
+
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Métodos já testados e abandonados:
+- k-means subtractor
+- KNN subtractor
+- haar cascade
+- MOG
+- Meanshift
+- Camshift
+- HOG
+- YoloV3 - tiny
+
+Métodos utilizados atualmente:
+- YoloV3 - 320
