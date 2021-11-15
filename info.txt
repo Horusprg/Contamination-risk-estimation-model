@@ -1,7 +1,18 @@
 
-PARA INICIAR O yoloV3-320.py é necessário baixar o arquivo rar: https://drive.google.com/file/d/1rJdvqmtzyzzRs8mkhCF5UFsgnIdmz2ks/view?usp=sharing
-e descompactá-lo na pasta yolo.
-
+PARA INICIAR O main.py é necessário 
+- digitar o comando no terminal na pasta do projeto: git clone https://github.com/ultralytics/yolov5
+- instalar o CUDA referente a sua placa de vídeo, se necessário
+- instalar as extensões devidas para rodar o código:
+	*TORCH
+	*ENUM
+	*OS
+	*RE
+	*DASH
+	*FLASK
+	*MATH
+	*DATETIME
+	*PLOTLY
+	*STREAMLINK
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 Encaminhamentos: 
