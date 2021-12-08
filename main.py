@@ -14,7 +14,7 @@ kernel = None
 
 from flask import Flask, Response
 import cv2 as cv
-from math import sqrt
+from math import sqrt, e
 from datetime import datetime, timedelta
 import plotly.graph_objects as go
 import numpy as np
@@ -27,30 +27,51 @@ cont_hist = [0]
 segundo = [0]
 dado = []
 videoconfig = []
+risk = [0,0]
+local_length, local_width, local_height = 0, 0, 0
+total_capacity = 20
+labels = [["with_mask", "withou_mask", "mask_weared_incorrectly"],[0,0,0]]
 
 #Carregando o modelo do yolov5("YoloV5s", "YoloV5m", "YoloV5l", "YoloV5xl", "YoloV5s6")
-model = torch.hub.load('yolov5', 'custom', path='wheight/YoloV5s6-v3.pt', source='local')
-model.multi_label = False
+model = torch.hub.load('yolov5', 'custom', path='wheight/YoloV5m6-v2.pt', source='local')
 model.conf = 0.3
-model.iou = 0
+model.iou = 0.20
 
 #URL do vídeo de stream
-url = "https://youtu.be/046c2M3azCg"
-streams = streamlink.streams(url)
+url = ""
+if url != "":
+    streams = streamlink.streams(url)
+
+
+def air_flow_rate(Cs):
+        Q = (5.2)/(Cs - 419)
+        return Q
+
+def quanta_concentration(q,Q, time, Volume):
+    qc = (q/Q)*(1 - e*(-(Q*time)/Volume))
+    return qc
+
+def infection_prob(q,Q, time):
+    P = (1.0 - pow(e,(-(q*0.016*time)/Q)))
+    return P
+
+def risk_rate(P, time, qc):
+    R = 100 * (1 - pow(e,(-P*time*qc/60)))
+    return R
 
 class VideoCamera(object):
     def __init__(self):
         #Escolhe a melhor qualidade de vídeo
-        self.video = cv.VideoCapture(streams["best"].url)
+        self.video = cv.VideoCapture()
         #Contadores de frames
         self.frames = 0
         self.count = 0
-        dado.append([[0, 0, 0, 0, 1],[int(self.video.get(cv.CAP_PROP_FRAME_WIDTH)),  -int(self.video.get(cv.CAP_PROP_FRAME_HEIGHT)), 0, 0, 1]])
+        dado.append([[int(self.video.get(cv.CAP_PROP_FRAME_WIDTH)),int(self.video.get(cv.CAP_PROP_FRAME_HEIGHT)), 0, 0, 0], [0,0, 0, 0, 0]])
 
     def __del__(self):
         self.video.release()
 
-    def get_frame(self, segundo, cont_hist, dado):
+    def get_frame(self, segundo, cont_hist, dado, with_mask=0):
 
         ok, image = self.video.read()
         detect = model(image, size = 2560)
@@ -62,10 +83,20 @@ class VideoCamera(object):
             horC = int((xmin + xmax)/2)
             verC = int((ymin + ymax)/2)
             cv.putText(image, str(confidence),(xmax + 20,ymin), cv.FONT_HERSHEY_SIMPLEX, 0.7, (0,255,0), 1, cv.LINE_AA)
-            cv.putText(image, label,(xmax + 20,ymin+20), cv.FONT_HERSHEY_SIMPLEX, 0.7, (0,255,0), 1, cv.LINE_AA)
+            cv.putText(image, label,(xmax + 20,ymin+30), cv.FONT_HERSHEY_SIMPLEX, 0.7, (0,255,0), 1, cv.LINE_AA)
             self.count+=1
             posicoes.append([horC,verC, xmax-xmin, ymin])
-        
+            labels.append(label)
+            if label == 'with_mask':
+                with_mask += 1
+                labels[1][0]+=1
+            
+            if label == 'without_mask':
+                labels[1][1]+=1
+            
+            if label == 'mask_weared_incorrectly':
+                labels[1][2]+=1
+            
         #Cria dois laços para detectar distancia entre pessoas proximas
         for j in range(len(posicoes)):
             aux = float("inf")
@@ -92,24 +123,36 @@ class VideoCamera(object):
             if aux >= 4 or aux == 0:
                 color = (0,255,0)
                         
-            cv.circle(image, (posicoes[j][0], posicoes[j][3]), 5, (color), -1)
-            cv.putText(image, str(float("{0:.2f}".format(posicoes[j][4])))+" m", (int(posicoes[j][0]+posicoes[j][2]/2)+20, posicoes[j][3] + 40), cv.FONT_HERSHEY_SIMPLEX, 0.7,
+            cv.circle(image, (posicoes[j][0], posicoes[j][3]), 7, (color), -1)
+            cv.putText(image, str(float("{0:.2f}".format(posicoes[j][4])))+" m", (int(posicoes[j][0]+posicoes[j][2]/2)+20, posicoes[j][3] + 60), cv.FONT_HERSHEY_SIMPLEX, 0.3,
                     color, 1, cv.LINE_AA)
 
         #implementa a contagem de pessoas e self. para gerar a media.
         self.frames += 1
         pessoas = int(self.count / self.frames)
 
+        #Volume de um escritório padrão
+        volume = 9.29*2.70*total_capacity
+        #volume = local_height*local_width*local_height
+            
         #Imprime o contador de média de pessoas detectadas por frame
         cv.putText(image, str(pessoas) + " Pessoas", (100, 80),
                 cv.FONT_HERSHEY_SIMPLEX, .75, (8, 0, 255), 2)
             # quantos self. por frame
         dado.append(posicoes)
-        if self.frames == 10:
+        if self.frames == 30:
             self.frames = 0
             cont_hist.append(pessoas)
             segundo.append(segundo[-1]+1)
             self.count = 0
+            #Área de Cálculo de risco
+            if pessoas != 0:
+                Q = pessoas*air_flow_rate(439)
+                q = 2.3666*(0.4+0.6*(pessoas-with_mask)/(pessoas))
+                qc = quanta_concentration(q, Q, ((segundo[-1] + 1)), volume)
+                P = infection_prob(q, Q, ((segundo[-1] + 1)))
+                R = risk_rate(P,((segundo[-1] + 1)/60), qc)
+                risk.append(R)
 
         ret, jpeg = cv.imencode('.jpg', image)
         return jpeg.tobytes()
@@ -192,14 +235,49 @@ def update_3d(n):
         for j in range(0, len(dado[i])):
             xAxes.append(dado[i][j][0])
             yAxes.append(-dado[i][j][1])
-            zAxes.append(dado[i][j][4])
+            zAxes.append(cont_hist)
     fig = go.Figure(go.Histogram2d(
                     x=(xAxes),
                     y=(yAxes),
                     z=(zAxes)
     ))
     return fig
-        
+
+@app.callback(
+            Output('live-velocimeter', 'figure'),
+            Input('interval-component', 'n_intervals')
+            )
+def velocimeter(n):
+    fig = go.Figure()
+    fig.add_trace(go.Indicator(
+    value = risk[-1],
+    delta = {'reference': risk[-2]},
+    gauge = {
+        'axis': {'visible': False}},
+    domain = {'row': 0, 'column': 0}))
+    fig.update_layout(
+    grid = {'rows': 1, 'columns': 1, 'pattern': "independent"},
+    template = {'data' : {'indicator': [{
+        'number':{'font_color':"white", 'suffix': "%"},
+        'gauge':{'axis_range': (0,100)},
+        'title': {'text': "CONTAMINATION RISK", 'font_color':"white", 'font_size': 48},
+        'mode' : "number+delta+gauge",
+        'delta' : {'reference': risk[-2]}}]
+                         }})
+    fig.update_layout(paper_bgcolor = "rgb(3, 7, 15)")
+    return fig
+
+@app.callback(
+            Output('live-pie', 'figure'),
+            Input('interval-component', 'n_intervals')
+            )
+
+def pie(n):
+    fig = px.pie(values = labels[1], names = labels[0])
+    fig.update_layout(legend_font_size = 32,paper_bgcolor = "rgb(3, 7, 15)")
+    
+    return fig
+
 app.layout = html.Div(
     className= "layout",
     children=[
@@ -207,12 +285,13 @@ app.layout = html.Div(
         html.Img(className="button",src="assets/Group 3.png"),
         html.H4("AMBIENTE"),
         html.Img(className= "video",src="/video_feed"),
-        html.Div("NÚMERO DE PESSOAS", className="contagem-left"),
-        html.Div("LIMITE PERMITIDO", className="contagem-right"),
+        html.Div("CLASSES", className="classes"),
         html.H3("PESSOAS AO LONGO DO DIA", className="contPess"),
         dcc.Graph(id='live-update-graph', className='contagem'),
         html.H3("MAPA DE OCUPAÇÃO", className="contPess2d"),
         dcc.Graph(id='live-update-3d', className='contagem3d'),
+        dcc.Graph(id='live-velocimeter', className='velocimeter'),
+        dcc.Graph(id='live-pie', className='pie'),
         dcc.Interval(
             id='interval-component',
             interval=1*1000,
