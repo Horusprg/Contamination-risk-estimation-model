@@ -1,28 +1,20 @@
 #Imports do projeto
-
 import torch
-from datetime import datetime, time
-from enum import auto
-from os import name
-from re import X
-
 import dash
-from dash.html.Frame import Frame
-from dash import dcc
-from dash import html
+import dash_core_components as dcc
+import dash_html_components as html
 kernel = None
-
 from flask import Flask, Response
 import cv2 as cv
 from math import sqrt, e
-from datetime import datetime, timedelta
+from datetime import timedelta
 import plotly.graph_objects as go
 import numpy as np
 import plotly.express as px
 from dash.dependencies import Output, Input
-import plotly
 import streamlink
 
+#Variáveis de dados
 cont_hist = [0]
 segundo = [0]
 dado = []
@@ -32,17 +24,16 @@ local_length, local_width, local_height = 0, 0, 0
 total_capacity = 20
 labels = [["with_mask", "withou_mask", "mask_weared_incorrectly"],[0,0,0]]
 
-#Carregando o modelo do yolov5("YoloV5s", "YoloV5m", "YoloV5l", "YoloV5xl", "YoloV5s6")
-model = torch.hub.load('yolov5', 'custom', path='wheight/YoloV5m6-v2.pt', source='local')
+#Carregando o modelo do yolov5("YoloV5s", "YoloV5m", "YoloV5l", "YoloV5xl", "YoloV5s6") disponível na pasta /wheight
+model = torch.hub.load('yolov5', 'custom', path='wheight/YoloV5s6.pt', source='local')
 model.conf = 0.3
 model.iou = 0.20
 
 #URL do vídeo de stream
-url = ""
-if url != "":
-    streams = streamlink.streams(url)
+url = "https://youtu.be/IVLD-t_vzeM"
+streams = streamlink.streams(url)
 
-
+#Contamination risk estimation model
 def air_flow_rate(Cs):
         Q = (5.2)/(Cs - 419)
         return Q
@@ -52,17 +43,18 @@ def quanta_concentration(q,Q, time, Volume):
     return qc
 
 def infection_prob(q,Q, time):
-    P = (1.0 - pow(e,(-(q*0.016*time)/Q)))
+    P = (1.0 - pow(e,(-(q*0.016*time)/Q/60)))
     return P
 
 def risk_rate(P, time, qc):
     R = 100 * (1 - pow(e,(-P*time*qc/60)))
     return R
 
+#Detecção de vídeo
 class VideoCamera(object):
     def __init__(self):
         #Escolhe a melhor qualidade de vídeo
-        self.video = cv.VideoCapture()
+        self.video = cv.VideoCapture(streams["best"].url)
         #Contadores de frames
         self.frames = 0
         self.count = 0
@@ -74,7 +66,7 @@ class VideoCamera(object):
     def get_frame(self, segundo, cont_hist, dado, with_mask=0):
 
         ok, image = self.video.read()
-        detect = model(image, size = 2560)
+        detect = model(image, size = 1080)
         peoples = detect.pandas().xyxy[0]
         peoples = peoples.to_numpy()
         posicoes = []
@@ -184,7 +176,7 @@ def findObjects(outputs,frame):
         posicoes.append([x,y,w,h])
     return posicoes
 
-
+#Stream da detecção de vídeo
 def gen(camera):
     while True:
         frame = camera.get_frame(segundo, cont_hist, dado)
