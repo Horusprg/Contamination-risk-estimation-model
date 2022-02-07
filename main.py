@@ -138,8 +138,8 @@ class VideoCamera(object):
         new_frame_time = time.time()
         fps = 1/(new_frame_time-self.prev_frame_time)
         self.prev_frame_time = new_frame_time
-        fps = str(fps)
         fps = int(fps)
+        fps = str(fps)
         cv.putText(image, fps, (7, 70), cv.FONT_HERSHEY_SIMPLEX, 3, (100, 255, 0), 3, cv.LINE_AA)
         dado.append(posicoes)
         if self.frames == 30:
