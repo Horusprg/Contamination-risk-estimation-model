@@ -13,10 +13,11 @@ import numpy as np
 import plotly.express as px
 from dash.dependencies import Output, Input
 import streamlink
+import time
 
 #Variáveis de dados
 cont_hist = [0]
-segundo = [0]
+timer = [0]
 dado = []
 videoconfig = []
 risk = [0,0]
@@ -30,7 +31,7 @@ model.conf = 0.3
 model.iou = 0.20
 
 #URL do vídeo de stream
-url = "https://youtu.be/IVLD-t_vzeM"
+url = "https://youtu.be/U2qwkqgLYAw"
 streams = streamlink.streams(url)
 
 #Contamination risk estimation model
@@ -56,6 +57,7 @@ class VideoCamera(object):
         #Escolhe a melhor qualidade de vídeo
         self.video = cv.VideoCapture(streams["best"].url)
         #Contadores de frames
+        self.tinit = time.time()
         self.frames = 0
         self.count = 0
         dado.append([[int(self.video.get(cv.CAP_PROP_FRAME_WIDTH)),int(self.video.get(cv.CAP_PROP_FRAME_HEIGHT)), 0, 0, 0], [0,0, 0, 0, 0]])
@@ -63,7 +65,7 @@ class VideoCamera(object):
     def __del__(self):
         self.video.release()
 
-    def get_frame(self, segundo, cont_hist, dado, with_mask=0):
+    def get_frame(self, timer, cont_hist, dado, with_mask=0,prev_frame_time=0):
 
         ok, image = self.video.read()
         detect = model(image, size = 1080)
@@ -131,19 +133,27 @@ class VideoCamera(object):
         cv.putText(image, str(pessoas) + " Pessoas", (100, 80),
                 cv.FONT_HERSHEY_SIMPLEX, .75, (8, 0, 255), 2)
             # quantos self. por frame
+        
+        new_frame_time = time.time()
+        fps = 1/(new_frame_time-prev_frame_time)
+        prev_frame_time = new_frame_time
+        fps = int(fps)
+        fps = str(fps)
+        cv.putText(image, fps, (7, 70), cv.FONT_HERSHEY_SIMPLEX, 3, (100, 255, 0), 3, cv.LINE_AA)
         dado.append(posicoes)
         if self.frames == 30:
             self.frames = 0
+            tempo = time.time()-self.tinit
             cont_hist.append(pessoas)
-            segundo.append(segundo[-1]+1)
+            timer.append(tempo)
             self.count = 0
             #Área de Cálculo de risco
             if pessoas != 0:
                 Q = pessoas*air_flow_rate(439)
                 q = 2.3666*(0.4+0.6*(pessoas-with_mask)/(pessoas))
-                qc = quanta_concentration(q, Q, ((segundo[-1] + 1)), volume)
-                P = infection_prob(q, Q, ((segundo[-1] + 1)))
-                R = risk_rate(P,((segundo[-1] + 1)/60), qc)
+                qc = quanta_concentration(q, Q, ((tempo)), volume)
+                P = infection_prob(q, Q, ((tempo)))
+                R = risk_rate(P,((tempo)/60), qc)
                 risk.append(R)
 
         ret, jpeg = cv.imencode('.jpg', image)
@@ -179,7 +189,7 @@ def findObjects(outputs,frame):
 #Stream da detecção de vídeo
 def gen(camera):
     while True:
-        frame = camera.get_frame(segundo, cont_hist, dado)
+        frame = camera.get_frame(timer, cont_hist, dado)
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n\r\n')
 
@@ -199,7 +209,7 @@ def video_feed():
 
 def update_graph(n):
     tempo = []
-    for sec in segundo:
+    for sec in timer:
         sec = str(timedelta(seconds = sec))
         tempo.append(sec)
 
@@ -252,7 +262,7 @@ def velocimeter(n):
     template = {'data' : {'indicator': [{
         'number':{'font_color':"white", 'suffix': "%"},
         'gauge':{'axis_range': (0,100)},
-        'title': {'text': "CONTAMINATION RISK", 'font_color':"white", 'font_size': 48},
+        'title': {'text': "Risco de contaminação", 'font_color':"white", 'font_size': 48},
         'mode' : "number+delta+gauge",
         'delta' : {'reference': risk[-2]}}]
                          }})

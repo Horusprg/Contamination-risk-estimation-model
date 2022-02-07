@@ -11,7 +11,6 @@ Export:
 """
 
 import argparse
-import logging
 import sys
 from copy import deepcopy
 from pathlib import Path
@@ -233,7 +232,7 @@ class TFDetect(keras.layers.Layer):
                 xy /= tf.constant([[self.imgsz[1], self.imgsz[0]]], dtype=tf.float32)
                 wh /= tf.constant([[self.imgsz[1], self.imgsz[0]]], dtype=tf.float32)
                 y = tf.concat([xy, wh, y[..., 4:]], -1)
-                z.append(tf.reshape(y, [-1, 3 * ny * nx, self.no]))
+                z.append(tf.reshape(y, [-1, self.na * ny * nx, self.no]))
 
         return x if self.training else (tf.concat(z, 1), x)
 
@@ -428,13 +427,13 @@ def run(weights=ROOT / 'yolov5s.pt',  # weights path
     # PyTorch model
     im = torch.zeros((batch_size, 3, *imgsz))  # BCHW image
     model = attempt_load(weights, map_location=torch.device('cpu'), inplace=True, fuse=False)
-    y = model(im)  # inference
+    _ = model(im)  # inference
     model.info()
 
     # TensorFlow model
     im = tf.zeros((batch_size, *imgsz, 3))  # BHWC image
     tf_model = TFModel(cfg=model.yaml, model=model, nc=model.nc, imgsz=imgsz)
-    y = tf_model.predict(im)  # inference
+    _ = tf_model.predict(im)  # inference
 
     # Keras model
     im = keras.Input(shape=(*imgsz, 3), batch_size=None if dynamic else batch_size)

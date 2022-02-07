@@ -17,11 +17,11 @@ import seaborn as sn
 import torch
 from PIL import Image, ImageDraw, ImageFont
 
-from utils.general import is_ascii, is_chinese, user_config_dir, xywh2xyxy, xyxy2xywh
+from utils.general import (CONFIG_DIR, FONT, LOGGER, Timeout, check_font, check_requirements, clip_coords,
+                           increment_path, is_ascii, is_chinese, try_except, xywh2xyxy, xyxy2xywh)
 from utils.metrics import fitness
 
 # Settings
-CONFIG_DIR = user_config_dir()  # Ultralytics settings dir
 RANK = int(os.getenv('RANK', -1))
 matplotlib.rc('font', **{'size': 11})
 matplotlib.use('Agg')  # for writing to files only
@@ -48,22 +48,23 @@ class Colors:
 colors = Colors()  # create instance for 'from utils.plots import colors'
 
 
-def check_font(font='Arial.ttf', size=10):
+def check_pil_font(font=FONT, size=10):
     # Return a PIL TrueType Font, downloading to CONFIG_DIR if necessary
     font = Path(font)
     font = font if font.exists() else (CONFIG_DIR / font.name)
     try:
         return ImageFont.truetype(str(font) if font.exists() else font.name, size)
-    except Exception as e:  # download if missing
-        url = "https://ultralytics.com/assets/" + font.name
-        print(f'Downloading {url} to {font}...')
-        torch.hub.download_url_to_file(url, str(font), progress=False)
-        return ImageFont.truetype(str(font), size)
+    except Exception:  # download if missing
+        check_font(font)
+        try:
+            return ImageFont.truetype(str(font), size)
+        except TypeError:
+            check_requirements('Pillow>=8.4.0')  # known issue https://github.com/ultralytics/yolov5/issues/5374
 
 
 class Annotator:
     if RANK in (-1, 0):
-        check_font()  # download TTF if necessary
+        check_pil_font()  # download TTF if necessary
 
     # YOLOv5 Annotator for train/val mosaics and jpgs and detect/hub inference annotations
     def __init__(self, im, line_width=None, font_size=None, font='Arial.ttf', pil=False, example='abc'):
@@ -72,8 +73,8 @@ class Annotator:
         if self.pil:  # use PIL
             self.im = im if isinstance(im, Image.Image) else Image.fromarray(im)
             self.draw = ImageDraw.Draw(self.im)
-            self.font = check_font(font='Arial.Unicode.ttf' if is_chinese(example) else font,
-                                   size=font_size or max(round(sum(self.im.size) / 2 * 0.035), 12))
+            self.font = check_pil_font(font='Arial.Unicode.ttf' if is_chinese(example) else font,
+                                       size=font_size or max(round(sum(self.im.size) / 2 * 0.035), 12))
         else:  # use cv2
             self.im = im
         self.lw = line_width or max(round(sum(im.shape) / 2 * 0.003), 2)  # line width
@@ -85,10 +86,10 @@ class Annotator:
             if label:
                 w, h = self.font.getsize(label)  # text width, height
                 outside = box[1] - h >= 0  # label fits outside box
-                self.draw.rectangle([box[0],
+                self.draw.rectangle((box[0],
                                      box[1] - h if outside else box[1],
                                      box[0] + w + 1,
-                                     box[1] + 1 if outside else box[1] + h + 1], fill=color)
+                                     box[1] + 1 if outside else box[1] + h + 1), fill=color)
                 # self.draw.text((box[0], box[1]), label, fill=txt_color, font=self.font, anchor='ls')  # for PIL>8.0
                 self.draw.text((box[0], box[1] - h if outside else box[1]), label, fill=txt_color, font=self.font)
         else:  # cv2
@@ -115,6 +116,34 @@ class Annotator:
     def result(self):
         # Return annotated image as array
         return np.asarray(self.im)
+
+
+def feature_visualization(x, module_type, stage, n=32, save_dir=Path('runs/detect/exp')):
+    """
+    x:              Features to be visualized
+    module_type:    Module type
+    stage:          Module stage within model
+    n:              Maximum number of feature maps to plot
+    save_dir:       Directory to save results
+    """
+    if 'Detect' not in module_type:
+        batch, channels, height, width = x.shape  # batch, channels, height, width
+        if height > 1 and width > 1:
+            f = save_dir / f"stage{stage}_{module_type.split('.')[-1]}_features.png"  # filename
+
+            blocks = torch.chunk(x[0].cpu(), channels, dim=0)  # select batch index 0, block by channels
+            n = min(n, channels)  # number of plots
+            fig, ax = plt.subplots(math.ceil(n / 8), 8, tight_layout=True)  # 8 rows x n/8 cols
+            ax = ax.ravel()
+            plt.subplots_adjust(wspace=0.05, hspace=0.05)
+            for i in range(n):
+                ax[i].imshow(blocks[i].squeeze())  # cmap='gray'
+                ax[i].axis('off')
+
+            LOGGER.info(f'Saving {f}... ({n}/{channels})')
+            plt.savefig(f, dpi=300, bbox_inches='tight')
+            plt.close()
+            np.save(str(f.with_suffix('.npy')), x[0].cpu().numpy())  # npy save
 
 
 def hist2d(x, y, n=100):
@@ -178,7 +207,7 @@ def plot_images(images, targets, paths=None, fname='images.jpg', names=None, max
 
     # Annotate
     fs = int((h + w) * ns * 0.01)  # font size
-    annotator = Annotator(mosaic, line_width=round(fs / 10), font_size=fs, pil=True)
+    annotator = Annotator(mosaic, line_width=round(fs / 10), font_size=fs, pil=True, example=names)
     for i in range(i + 1):
         x, y = int(w * (i // ns)), int(h * (i % ns))  # block origin
         annotator.rectangle([x, y, x + w, y + h], None, (255, 255, 255), width=2)  # borders
@@ -293,9 +322,11 @@ def plot_val_study(file='', dir='', x=None):  # from utils.plots import *; plot_
     plt.savefig(f, dpi=300)
 
 
+@try_except  # known issue https://github.com/ultralytics/yolov5/issues/5395
+@Timeout(30)  # known issue https://github.com/ultralytics/yolov5/issues/5611
 def plot_labels(labels, names=(), save_dir=Path('')):
     # plot dataset labels
-    print('Plotting labels... ')
+    LOGGER.info(f"Plotting labels to {save_dir / 'labels.jpg'}... ")
     c, b = labels[:, 0], labels[:, 1:].transpose()  # classes, boxes
     nc = int(c.max() + 1)  # number of classes
     x = pd.DataFrame(b.transpose(), columns=['x', 'y', 'width', 'height'])
@@ -309,7 +340,7 @@ def plot_labels(labels, names=(), save_dir=Path('')):
     matplotlib.use('svg')  # faster
     ax = plt.subplots(2, 2, figsize=(8, 8), tight_layout=True)[1].ravel()
     y = ax[0].hist(c, bins=np.linspace(0, nc, nc + 1) - 0.5, rwidth=0.8)
-    # [y[2].patches[i].set_color([x / 255 for x in colors(i)]) for i in range(nc)]  # update colors bug #3195
+    [y[2].patches[i].set_color([x / 255 for x in colors(i)]) for i in range(nc)]  # update colors bug #3195
     ax[0].set_ylabel('instances')
     if 0 < len(names) < 30:
         ax[0].set_xticks(range(len(names)))
@@ -335,37 +366,6 @@ def plot_labels(labels, names=(), save_dir=Path('')):
     plt.savefig(save_dir / 'labels.jpg', dpi=200)
     matplotlib.use('Agg')
     plt.close()
-
-
-def profile_idetection(start=0, stop=0, labels=(), save_dir=''):
-    # Plot iDetection '*.txt' per-image logs. from utils.plots import *; profile_idetection()
-    ax = plt.subplots(2, 4, figsize=(12, 6), tight_layout=True)[1].ravel()
-    s = ['Images', 'Free Storage (GB)', 'RAM Usage (GB)', 'Battery', 'dt_raw (ms)', 'dt_smooth (ms)', 'real-world FPS']
-    files = list(Path(save_dir).glob('frames*.txt'))
-    for fi, f in enumerate(files):
-        try:
-            results = np.loadtxt(f, ndmin=2).T[:, 90:-30]  # clip first and last rows
-            n = results.shape[1]  # number of rows
-            x = np.arange(start, min(stop, n) if stop else n)
-            results = results[:, x]
-            t = (results[0] - results[0].min())  # set t0=0s
-            results[0] = x
-            for i, a in enumerate(ax):
-                if i < len(results):
-                    label = labels[fi] if len(labels) else f.stem.replace('frames_', '')
-                    a.plot(t, results[i], marker='.', label=label, linewidth=1, markersize=5)
-                    a.set_title(s[i])
-                    a.set_xlabel('time (s)')
-                    # if fi == len(files) - 1:
-                    #     a.set_ylim(bottom=0)
-                    for side in ['top', 'right']:
-                        a.spines[side].set_visible(False)
-                else:
-                    a.remove()
-        except Exception as e:
-            print(f'Warning: Plotting error for {f}; {e}')
-    ax[1].legend()
-    plt.savefig(Path(save_dir) / 'idetection_profile.png', dpi=200)
 
 
 def plot_evolve(evolve_csv='path/to/evolve.csv'):  # from utils.plots import *; plot_evolve()
@@ -414,34 +414,54 @@ def plot_results(file='path/to/results.csv', dir=''):
                 # if j in [8, 9, 10]:  # share train and val loss y axes
                 #     ax[i].get_shared_y_axes().join(ax[i], ax[i - 5])
         except Exception as e:
-            print(f'Warning: Plotting error for {f}: {e}')
+            LOGGER.info(f'Warning: Plotting error for {f}: {e}')
     ax[1].legend()
     fig.savefig(save_dir / 'results.png', dpi=200)
     plt.close()
 
 
-def feature_visualization(x, module_type, stage, n=32, save_dir=Path('runs/detect/exp')):
-    """
-    x:              Features to be visualized
-    module_type:    Module type
-    stage:          Module stage within model
-    n:              Maximum number of feature maps to plot
-    save_dir:       Directory to save results
-    """
-    if 'Detect' not in module_type:
-        batch, channels, height, width = x.shape  # batch, channels, height, width
-        if height > 1 and width > 1:
-            f = f"stage{stage}_{module_type.split('.')[-1]}_features.png"  # filename
+def profile_idetection(start=0, stop=0, labels=(), save_dir=''):
+    # Plot iDetection '*.txt' per-image logs. from utils.plots import *; profile_idetection()
+    ax = plt.subplots(2, 4, figsize=(12, 6), tight_layout=True)[1].ravel()
+    s = ['Images', 'Free Storage (GB)', 'RAM Usage (GB)', 'Battery', 'dt_raw (ms)', 'dt_smooth (ms)', 'real-world FPS']
+    files = list(Path(save_dir).glob('frames*.txt'))
+    for fi, f in enumerate(files):
+        try:
+            results = np.loadtxt(f, ndmin=2).T[:, 90:-30]  # clip first and last rows
+            n = results.shape[1]  # number of rows
+            x = np.arange(start, min(stop, n) if stop else n)
+            results = results[:, x]
+            t = (results[0] - results[0].min())  # set t0=0s
+            results[0] = x
+            for i, a in enumerate(ax):
+                if i < len(results):
+                    label = labels[fi] if len(labels) else f.stem.replace('frames_', '')
+                    a.plot(t, results[i], marker='.', label=label, linewidth=1, markersize=5)
+                    a.set_title(s[i])
+                    a.set_xlabel('time (s)')
+                    # if fi == len(files) - 1:
+                    #     a.set_ylim(bottom=0)
+                    for side in ['top', 'right']:
+                        a.spines[side].set_visible(False)
+                else:
+                    a.remove()
+        except Exception as e:
+            print(f'Warning: Plotting error for {f}; {e}')
+    ax[1].legend()
+    plt.savefig(Path(save_dir) / 'idetection_profile.png', dpi=200)
 
-            blocks = torch.chunk(x[0].cpu(), channels, dim=0)  # select batch index 0, block by channels
-            n = min(n, channels)  # number of plots
-            fig, ax = plt.subplots(math.ceil(n / 8), 8, tight_layout=True)  # 8 rows x n/8 cols
-            ax = ax.ravel()
-            plt.subplots_adjust(wspace=0.05, hspace=0.05)
-            for i in range(n):
-                ax[i].imshow(blocks[i].squeeze())  # cmap='gray'
-                ax[i].axis('off')
 
-            print(f'Saving {save_dir / f}... ({n}/{channels})')
-            plt.savefig(save_dir / f, dpi=300, bbox_inches='tight')
-            plt.close()
+def save_one_box(xyxy, im, file='image.jpg', gain=1.02, pad=10, square=False, BGR=False, save=True):
+    # Save image crop as {file} with crop size multiple {gain} and {pad} pixels. Save and/or return crop
+    xyxy = torch.tensor(xyxy).view(-1, 4)
+    b = xyxy2xywh(xyxy)  # boxes
+    if square:
+        b[:, 2:] = b[:, 2:].max(1)[0].unsqueeze(1)  # attempt rectangle to square
+    b[:, 2:] = b[:, 2:] * gain + pad  # box wh * gain + pad
+    xyxy = xywh2xyxy(b).long()
+    clip_coords(xyxy, im.shape)
+    crop = im[int(xyxy[0, 1]):int(xyxy[0, 3]), int(xyxy[0, 0]):int(xyxy[0, 2]), ::(1 if BGR else -1)]
+    if save:
+        file.parent.mkdir(parents=True, exist_ok=True)  # make directory
+        cv2.imwrite(str(increment_path(file).with_suffix('.jpg')), crop)
+    return crop
