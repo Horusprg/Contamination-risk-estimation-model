@@ -59,5 +59,4 @@ Portanto, são utilizadas equações com base nas propostas por Wells-Riley para
 - Meanshift
 - Camshift
 - HOG
-- YoloV3 - tiny
-- YoloV3 - 320
+- YoloV3
