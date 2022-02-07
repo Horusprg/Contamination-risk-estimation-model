@@ -31,7 +31,7 @@ model.conf = 0.3
 model.iou = 0.20
 
 #URL do vídeo de stream
-url = "https://youtu.be/U2qwkqgLYAw"
+url = "https://youtu.be/q7-1M3annmM"
 streams = streamlink.streams(url)
 
 #Contamination risk estimation model
@@ -58,6 +58,7 @@ class VideoCamera(object):
         self.video = cv.VideoCapture(streams["best"].url)
         #Contadores de frames
         self.tinit = time.time()
+        self.prev_frame_time=0
         self.frames = 0
         self.count = 0
         dado.append([[int(self.video.get(cv.CAP_PROP_FRAME_WIDTH)),int(self.video.get(cv.CAP_PROP_FRAME_HEIGHT)), 0, 0, 0], [0,0, 0, 0, 0]])
@@ -65,7 +66,7 @@ class VideoCamera(object):
     def __del__(self):
         self.video.release()
 
-    def get_frame(self, timer, cont_hist, dado, with_mask=0,prev_frame_time=0):
+    def get_frame(self, timer, cont_hist, dado, with_mask=0):
 
         ok, image = self.video.read()
         detect = model(image, size = 1080)
@@ -135,10 +136,10 @@ class VideoCamera(object):
             # quantos self. por frame
         
         new_frame_time = time.time()
-        fps = 1/(new_frame_time-prev_frame_time)
-        prev_frame_time = new_frame_time
-        fps = int(fps)
+        fps = 1/(new_frame_time-self.prev_frame_time)
+        self.prev_frame_time = new_frame_time
         fps = str(fps)
+        fps = int(fps)
         cv.putText(image, fps, (7, 70), cv.FONT_HERSHEY_SIMPLEX, 3, (100, 255, 0), 3, cv.LINE_AA)
         dado.append(posicoes)
         if self.frames == 30:
