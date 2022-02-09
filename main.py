@@ -7,18 +7,11 @@ from datetime import timedelta
 import plotly.graph_objects as go
 import plotly.express as px
 from dash.dependencies import Output, Input
-from detection import VideoCamera, dado, timer, cont_hist, risk, labels
+from detection import VideoCamera, gen, dado, timer, cont_hist, risk, labels
 
 
 #URL do vídeo de stream
 url = "https://youtu.be/IVLD-t_vzeM"
-
-#Stream da detecção de vídeo
-def gen(camera):
-    while True:
-        frame = camera.get_frame(timer, cont_hist, dado)
-        yield (b'--frame\r\n'
-               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n\r\n')
 
 server = Flask(__name__)
 app = dash.Dash(__name__, server=server)
