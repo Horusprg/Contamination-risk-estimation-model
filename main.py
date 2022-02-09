@@ -1,7 +1,7 @@
 #Imports do projeto
 import dash
-import dash_core_components as dcc
-import dash_html_components as html
+from dash import html
+from dash import dcc
 from flask import Flask, Response
 from datetime import timedelta
 import plotly.graph_objects as go
