@@ -1,6 +1,4 @@
 #Imports do projeto
-kernel = None
-from email import feedparser
 import cv2 as cv
 from math import sqrt, e
 import numpy as np
@@ -47,9 +45,9 @@ def videofeed(url):
 
 #Detecção de vídeo
 class VideoCamera(object):  
-    def __init__(self,feed):
+    def __init__(self,url):
         #Escolhe a melhor qualidade de vídeo
-        self.video = cv.VideoCapture(feed)
+        self.video = cv.VideoCapture(videofeed(url))
         #Contadores de frames
         self.tinit = time.time()
         self.prev_frame_time=0

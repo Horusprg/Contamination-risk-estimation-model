@@ -1,25 +1,17 @@
 #Imports do projeto
-import torch
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
-kernel = None
 from flask import Flask, Response
-import cv2 as cv
-from math import sqrt, e
 from datetime import timedelta
 import plotly.graph_objects as go
-import numpy as np
 import plotly.express as px
 from dash.dependencies import Output, Input
-import streamlink
-import time
-from detection import VideoCamera, videofeed, dado, timer, cont_hist, risk, labels
+from detection import VideoCamera, dado, timer, cont_hist, risk, labels
 
 
 #URL do vídeo de stream
 url = "https://youtu.be/IVLD-t_vzeM"
-feed = videofeed(url)
 
 #Stream da detecção de vídeo
 def gen(camera):
@@ -34,15 +26,15 @@ app = dash.Dash(__name__, server=server)
 @server.route('/video_feed')
 
 def video_feed():
-    return Response(gen(VideoCamera(feed)),
+    return Response(gen(VideoCamera(url)),
                     mimetype='multipart/x-mixed-replace; boundary=frame')
 
 @app.callback(
             Output('live-update-graph', 'figure'),
-            Input('interval-component', 'n_intervals')
+            [Input('interval-component', "n_intervals")]
             )
 
-def update_graph(n):
+def update_graph(n_intervals):
     tempo = []
     for sec in timer:
         sec = str(timedelta(seconds = sec))
@@ -61,10 +53,10 @@ def update_graph(n):
 
 @app.callback(
             Output('live-update-3d', 'figure'),
-            Input('interval-component', 'n_intervals')
+            [Input('interval-component', "n_intervals")]
             )
 
-def update_3d(n):
+def update_3d(n_intervals):
     xAxes = []
     yAxes = []
     zAxes = []
@@ -82,9 +74,9 @@ def update_3d(n):
 
 @app.callback(
             Output('live-velocimeter', 'figure'),
-            Input('interval-component', 'n_intervals')
+            [Input('interval-component', "n_intervals")]
             )
-def velocimeter(n):
+def velocimeter(n_intervals):
     fig = go.Figure()
     fig.add_trace(go.Indicator(
     value = risk[-1],
@@ -106,10 +98,10 @@ def velocimeter(n):
 
 @app.callback(
             Output('live-pie', 'figure'),
-            Input('interval-component', 'n_intervals')
+            [Input('interval-component', "n_intervals")]
             )
 
-def pie(n):
+def pie(n_intervals):
     fig = px.pie(values = labels[1], names = labels[0])
     fig.update_layout(legend_font_size = 32,paper_bgcolor = "rgb(3, 7, 15)")
     
@@ -139,4 +131,3 @@ app.layout = html.Div(
 
 if __name__ == '__main__':
     app.run_server(debug=False)
-    
