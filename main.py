@@ -1,13 +1,12 @@
 #Imports do projeto
 import dash
-from dash import html
-from dash import dcc
+import dash_core_components as dcc
+import dash_html_components as html
 from flask import Flask, Response
-from datetime import timedelta
 import plotly.graph_objects as go
 import plotly.express as px
 from dash.dependencies import Output, Input
-from detection import VideoCamera, gen, dado, timer, cont_hist, risk, labels
+from detection import VideoCamera, gen, df, risk, labels
 
 
 #URL do vídeo de stream
@@ -28,21 +27,15 @@ def video_feed():
             )
 
 def update_graph(n_intervals):
-    tempo = []
-    for sec in timer:
-        sec = str(timedelta(seconds = sec))
-        tempo.append(sec)
-
     fig = go.Figure(layout={"template":"plotly_dark"})
-    fig.add_trace(go.Bar(x=tempo, y=cont_hist))
+    fig.add_trace(go.Bar(x=df["timer"], y=df["count"]))
     fig.update_layout(
         paper_bgcolor="#242424",
         plot_bgcolor="#242424",
         autosize=True,
         margin=dict(l=10, r=10, b=30, t=10),
         )
-
-    return  fig
+    return fig
 
 @app.callback(
             Output('live-update-3d', 'figure'),
@@ -50,18 +43,10 @@ def update_graph(n_intervals):
             )
 
 def update_3d(n_intervals):
-    xAxes = []
-    yAxes = []
-    zAxes = []
-    for i in range(0, len(dado)):
-        for j in range(0, len(dado[i])):
-            xAxes.append(dado[i][j][0])
-            yAxes.append(-dado[i][j][1])
-            zAxes.append(cont_hist)
     fig = go.Figure(go.Histogram2d(
-                    x=(xAxes),
-                    y=(yAxes),
-                    z=(zAxes)
+                    x=(df["bboxes"][0]),
+                    y=(list(map(lambda x: -x, df["bboxes"][1]))),
+                    z=(df["count"])
     ))
     return fig
 
@@ -95,7 +80,7 @@ def velocimeter(n_intervals):
             )
 
 def pie(n_intervals):
-    fig = px.pie(values = labels[1], names = labels[0])
+    fig = px.pie(values = labels.values(), names = labels.keys())
     fig.update_layout(legend_font_size = 32,paper_bgcolor = "rgb(3, 7, 15)")
     
     return fig
