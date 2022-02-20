@@ -14,37 +14,32 @@
 
     background: #03070f;
 }
-
+.head{
+    position:relative;
+    padding-top: 4em;
+}
 h5{
     /* MONITORAMENTO DE LOCAL */
-
-    position: absolute;
-    height: 64px;
-    top: 64px;
     left: 5%;
-    padding-top: 0px;
     font-family:'Anonymous Pro', monospace;
     font-style: normal;
     font-weight: 500;
     letter-spacing: 2px;
     color: #ffffffab;
     
-    width:fit-content;
-    border-right: 4px solid rgba(255,255,255,.75);
-    font-size: 64px;
-    text-align: left;
-    white-space: nowrap;
-    overflow: hidden;
-    transform: translateY(-10%); 
+    
 }
 
 .anim-typewriter{
-    animation: typewriter 4s steps(44) 1s 1 normal both,
-               blinkTextCursor 500ms steps(44) infinite normal;
-  }
-  @keyframes typewriter{
-    from{width: 0;}
-    to{width:12.5 em;}
+    animation: blinkTextCursor 1000ms steps(100) infinite normal;
+    position: relative;
+    width:fit-content;
+    border-right: 4px solid rgba(255,255,255,.75);
+    font-size: 4em;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+
   }
   @keyframes blinkTextCursor{
     from{border-right-color: rgba(255,255,255,.75);}
@@ -86,13 +81,10 @@ h4{
 
 .video{
     /*img*/
-
-    position: absolute;
+    position: relative;
     width: 70%;
     height: 25%;
     left: 15%;
-    top: 270px;
-
     background: #C4C4C4;
 }
 

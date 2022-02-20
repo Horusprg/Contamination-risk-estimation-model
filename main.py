@@ -88,10 +88,13 @@ def pie(n_intervals):
 app.layout = html.Div(
     className= "layout",
     children=[
-        html.H5("MONITORAMENTO DE LOCAL", className="anim-typewriter"),
-        html.Img(className="button",src="assets/Group 3.png"),
-        html.H4("AMBIENTE"),
-        html.Img(className= "video",src="/video_feed"),
+        html.Div(className="head",
+        children=[
+            html.H5("MONITORAMENTO DE LOCAL", className="anim-typewriter"),
+            html.Img(className="button",src="assets/Group 3.png"),
+            html.H4("AMBIENTE"),
+            html.Img(className= "video",src="/video_feed"),
+        ]),
         html.Div("CLASSES", className="classes"),
         html.H3("PESSOAS AO LONGO DO DIA", className="contPess"),
         dcc.Graph(id='live-update-graph', className='contagem'),
@@ -108,4 +111,4 @@ app.layout = html.Div(
 )
 
 if __name__ == '__main__':
-    app.run_server(debug=False)
+    app.run_server(debug=True)
