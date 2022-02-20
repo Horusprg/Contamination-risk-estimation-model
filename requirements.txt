@@ -11,7 +11,6 @@ brotlipy==0.7.0
 cachetools==4.2.4
 certifi==2021.5.30
 click==8.0.3
-clyent==1.2.2
 comtypes==1.1.10
 conda==4.11.0
 conda-build==3.21.6
