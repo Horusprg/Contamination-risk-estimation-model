@@ -75,7 +75,6 @@ Sphinx==4.2.0
 statsmodels==0.12.2
 streamlink==3.0.3
 tables==3.6.1
-TBB==0.2
 tensorboard==2.7.0
 tensorboard-data-server==0.6.1
 tensorboard-plugin-wit==1.8.1
