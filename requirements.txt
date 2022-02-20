@@ -71,7 +71,6 @@ requests-oauthlib==1.3.0
 roboflow==0.2.1
 rsa==4.8
 simplegeneric==0.8.1
-sip==4.19.13
 Sphinx==4.2.0
 statsmodels==0.12.2
 streamlink==3.0.3
