@@ -49,7 +49,7 @@ pafy==0.5.5
 pathspec==0.7.0
 patsy==0.5.2
 pep8==1.7.1
-Pillow==8.4.0
+Pillow==9.0.0
 pkginfo==1.7.1
 ply==3.11
 protobuf==3.19.3
