@@ -41,7 +41,7 @@ mkl-service==2.4.0
 mpmath==1.2.1
 munkres==1.1.4
 mypy-extensions==0.4.3
-nltk==3.6.5
+nltk==3.6.6
 oauthlib==3.1.1
 opencv-contrib-python==4.5.5.62
 opencv-python==4.5.5.62
@@ -49,7 +49,7 @@ pafy==0.5.5
 pathspec==0.7.0
 patsy==0.5.2
 pep8==1.7.1
-Pillow==8.4.0
+Pillow==9.0.0
 pkginfo==1.7.1
 ply==3.11
 protobuf==3.19.3
