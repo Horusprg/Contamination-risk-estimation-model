@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script type="text/javascript" src="https://unpkg.com/webcam-easy/dist/webcam-easy.min.js"></script>
+    <title>Index</title>
+</head>
+<body>
+    <h1>Seja bem vindo!</h1>
+    <h3>Caso queira realizar a detecção por link de vídeo, basta preencher o campo abaixo!</h3>
+    <form action="/detect" method="post"> 
+        <input type="text" name="url" id="url" placeholder="link do vídeo">
+        <input type="text" name="user" id="user" placeholder="nome de usuário">
+        <br>
+        <h3>Caso queira utilizar um dispositivo de vídeo local, apenas prossiga.</h3>
+        <button type="submit">Prosseguir</button>
+    </form>
+</body>
+</html>
