@@ -14,7 +14,8 @@ mkl-fft==1.3.1
 mkl-random
 mkl-service==2.4.0
 munkres==1.1.4
-opencv-python==4.5.5.62
+opencv-python-headless
+pandas
 Pillow==9.0.0
 pycountry==22.1.10
 pycryptodome==3.14.1
@@ -23,6 +24,7 @@ python-dateutil
 pytz==2021.3
 PyYAML==6.0
 requests==2.27.1
+seaborn
 streamlink==3.1.1
 torch
 torchvision
