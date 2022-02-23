@@ -25,7 +25,7 @@ olefile
 opencv-python==4.5.5.62
 packaging
 pandas
-Pillow==8.4.0
+Pillow==9.0.0
 pycountry==22.1.10
 pycryptodome==3.14.1
 pyparsing
