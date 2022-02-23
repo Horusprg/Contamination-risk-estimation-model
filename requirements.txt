@@ -28,6 +28,7 @@ seaborn
 streamlink==3.1.1
 torch
 torchvision
+tqdm
 urllib3==1.26.8
 websocket-client==1.2.3
 wincertstore==0.2
