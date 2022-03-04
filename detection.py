@@ -48,7 +48,8 @@ df = {"count": [],
       }
 
 # Carregando o modelo do yolov5("YoloV5s", "YoloV5m", "YoloV5l", "YoloV5xl", "YoloV5s6") disponível na pasta /wheight
-model = torch.hub.load('yolov5', 'custom', path='wheight/YoloV5s6.pt', source='local')
+model = torch.hub.load('ultralytics/yolov5', 'custom', path='wheight/YoloV5s6.pt', force_reload=True)
+model.eval()
 model.conf = 0.4
 model.iou = 0.4
 
