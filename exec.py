@@ -1,4 +1,5 @@
 #Imports do projeto
+import tkinter
 import cv2 as cv
 from math import e
 import time
@@ -9,7 +10,42 @@ import torch
 from datetime import timedelta
 from tkinter import *
 from PIL import Image, ImageTk
+import numpy as np
+
 import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg, NavigationToolbar2Tk)
+from matplotlib.backend_bases import key_press_handler
+from matplotlib.figure import Figure
+
+import os
+os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
+
+# Variáveis de dados
+videoconfig = []
+risk = [0, 0]
+total_capacity = 20
+
+
+# Carregando o modelo do yolov5("YoloV5s", "YoloV5m", "YoloV5l", "YoloV5xl", "YoloV5s6") disponível na pasta /wheight
+model = torch.hub.load('ultralytics/yolov5', 'yolov5s6', force_reload=True)
+model.conf = 0.3
+model.classes = 0
+try:
+    model.cuda()
+except:
+    model.cpu()
+
+figure = plt.Figure(figsize=(8,4), dpi=60)
+        
+ax = figure.add_subplot(111)
+
+
+
+
+def videofeed(url):
+    streams = streamlink.streams(url)
+    feed = streams["best"].url
+    return feed
 
 
 # Contamination risk estimation model
@@ -33,64 +69,71 @@ def risk_rate(P, time, qc):
     return R
 
 
-# Variáveis de dados
-videoconfig = []
-risk = [0, 0]
-total_capacity = 20
 
-# Carregando o modelo do yolov5("YoloV5s", "YoloV5m", "YoloV5l", "YoloV5xl", "YoloV5s6") disponível na pasta /wheight
-model = torch.hub.load('ultralytics/yolov5', 'yolov5s6', force_reload=True)
-model.conf = 0.3
-model.classes = 0
-try:
-    model.cuda()
-except:
-    model.cpu()
+class Main:
+    def __init__(self):
+        self.layout = Tk()
+        self.layout.geometry('1280x800')
+        self.layout.eval('tk::PlaceWindow . center')
+        self.layout.title("CREM - LPO")
+        self.layout["background"] = "#423C3C"
+        self.mount()
+        self.layout.mainloop()
+    
+    def mount(self):
+        self.info1 = Label(self.layout, text= "Para realizar a detecção em link externo, preencha o campo abaixo e clique em DETECT!", font="helvetica 14")
+        self.info1.grid(row=1, column=0, sticky=S, pady=30, padx=30)
+        self.url = Entry(self.layout)
+        self.url.grid(row=2, column=0, sticky=S, pady=30, padx=30)
+        self.info2 = Label(self.layout, text= "Caso queira utilizar a sua própria câmera, basta clicar em DETECT!", font="helvetica 14")
+        self.info2.grid(row=3, column=0, sticky=S, pady=30, padx=30)
+        self.bDetect = Button(self.layout, text="DETECT", command= self.bdPressed)
+        self.bDetect.grid(row=4, column=0, sticky=S, pady=30, padx=30)
+    
+    def bdPressed(self):
+        link = self.url.get()
+        self.info1.destroy()
+        self.url.destroy()
+        self.info2.destroy()
+        self.bDetect.destroy()
+        if link == '':
+            self.vFrame(0)
+        else:
+            self.vFrame(videofeed(link))
+    
+    def __del__(self):
+        self.video.release()
+        self.detection.destroy()
+        self.bStop.destroy()
+        self.mount()
 
-
-def videofeed(url):
-    streams = streamlink.streams(url)
-    feed = streams["best"].url
-    return feed
-
-
-
-# Detecção de vídeo
-class VideoCamera:
-    def __init__(self, source):
+    def vFrame(self,source):
         # Escolhe a melhor qualidade de vídeo
         self.video = cv.VideoCapture(source)
         w = int(self.video.get(cv.CAP_PROP_FRAME_WIDTH))
         h = int(self.video.get(cv.CAP_PROP_FRAME_HEIGHT))
         #frame de detecção
-        self.detection = Label(layout)
+        self.detection = Label(self.layout)
         self.detection.grid(row=0, column=0, rowspan = 2, pady=30, padx=30)
-        self.bStop = Button(layout, text="STOP", command= self.__del__, font="helvetica 14")
+        self.bStop = Button(self.layout, text="STOP", command= self.__del__, font="helvetica 14")
         self.bStop.grid(row=3, column=0, pady=30)
 
         # Contadores de frames
         self.tinit = time.time()
         self.prev_frame_time = 0
         self.frame = 0
-        self.df = {"count": [0,0],
+        self.df = {"count": [0],
                     "bboxes":   [[w,0],
                                 [h,0],
                                 [w,0],
                                 [h,0]],
-                    "timer": [0,0],
+                    "timer": [''],
                     "label": [None,None]
                     }
-        
-        self.get_frame()
 
-    def __del__(self):
-        self.video.release()
-        self.detection.destroy()
-        self.bStop.destroy()
-        info1.grid(row=1, column=0, pady=30, padx=30)
-        url.grid(row=2, column=0, pady=30, padx=30)
-        info2.grid(row=3, column=0, pady=30, padx=30)
-        bDetect.grid(row=4, column=0, pady=30, padx=30)
+        canvas = FigureCanvasTkAgg(figure, self.layout)
+        canvas.get_tk_widget().grid(row=0,column=3)
+        self.get_frame()
 
     def get_frame(self):
         self.mask = 0
@@ -131,7 +174,10 @@ class VideoCamera:
         if self.frame == 30:
             self.frame = 0
             self.df["timer"].append(str(timedelta(seconds=int(time.time() - self.tinit))))
+            #self.df["timer"].append(int(time.time() - self.tinit))
             self.df["count"].append(len(detect))
+            canvas = FigureCanvasTkAgg(figure, self.layout)
+            canvas.get_tk_widget().grid(row=0,column=3)
 
             if len(detect) != 0:
                 Q = len(detect) * air_flow_rate(439)
@@ -148,40 +194,8 @@ class VideoCamera:
         imgtk = ImageTk.PhotoImage(image = img)
         self.detection.imgtk = imgtk
         self.detection.configure(image=imgtk)
+        ax.plot(self.df["timer"], self.df["count"], linewidth=2.0)
         # Repeat after an interval to capture continiously
         self.detection.after(10, self.get_frame)
 
-def app():
-    if url.get() == '':
-        info1.grid(row=1, column=0)
-        url.grid(row=1, column=0)
-        info2.grid(row=1, column=0)
-        bDetect.grid(row=1, column=0)
-        return VideoCamera(0)
-    else:
-        info1.grid(row=1, column=0)
-        url.grid(row=1, column=0)
-        info2.grid(row=1, column=0)
-        bDetect.grid(row=1, column=0)
-        return VideoCamera(videofeed(url.get()))
-
-
-layout = Tk()
-layout.geometry('1280x800')
-layout.eval('tk::PlaceWindow . center')
-layout.title("CREM - LPO")
-layout["background"] = "#423C3C"
-
-info1 = Label(layout, text= "Para realizar a detecção em link externo, preencha o campo abaixo e clique em DETECT!", font="helvetica 14")
-info1.grid(row=1, column=0, sticky=S, pady=30, padx=30)
-url = Entry(layout)
-url.grid(row=2, column=0, sticky=S, pady=30, padx=30)
-info2 = Label(layout, text= "Caso queira utilizar a sua própria câmera, basta clicar em DETECT!", font="helvetica 14")
-info2.grid(row=3, column=0, sticky=S, pady=30, padx=30)
-
-bDetect = Button(layout, text="DETECT", command= app)
-bDetect.grid(row=4, column=0, sticky=S, pady=30, padx=30)
-
-
-
-layout.mainloop()
+Main()
