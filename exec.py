@@ -27,7 +27,7 @@ total_capacity = 20
 
 
 # Carregando o modelo do yolov5("YoloV5s", "YoloV5m", "YoloV5l", "YoloV5xl", "YoloV5s6") disponível na pasta /wheight
-model = torch.hub.load('ultralytics/yolov5', 'yolov5s6', force_reload=True)
+model = torch.hub.load('ultralytics/yolov5', 'yolov5s6')
 model.conf = 0.3
 model.classes = 0
 try:
@@ -35,11 +35,9 @@ try:
 except:
     model.cpu()
 
+
 figure = plt.Figure(figsize=(8,4), dpi=60)
-        
 ax = figure.add_subplot(111)
-
-
 
 
 def videofeed(url):
@@ -105,6 +103,7 @@ class Main:
         self.video.release()
         self.detection.destroy()
         self.bStop.destroy()
+        self.canvas1.get_tk_widget().destroy()
         self.mount()
 
     def vFrame(self,source):
@@ -121,7 +120,7 @@ class Main:
         # Contadores de frames
         self.tinit = time.time()
         self.prev_frame_time = 0
-        self.frame = 0
+        self.frame = 30
         self.df = {"count": [0],
                     "bboxes":   [[w,0],
                                 [h,0],
@@ -130,9 +129,8 @@ class Main:
                     "timer": [''],
                     "label": [None,None]
                     }
-
-        canvas = FigureCanvasTkAgg(figure, self.layout)
-        canvas.get_tk_widget().grid(row=0,column=3)
+        self.canvas1 = FigureCanvasTkAgg(figure, self.layout)
+        self.canvas1.get_tk_widget().grid(row=0,column=1)
         self.get_frame()
 
     def get_frame(self):
@@ -170,14 +168,15 @@ class Main:
         fps = str(fps)
         cv.putText(image, fps, (7, 70), cv.FONT_HERSHEY_SIMPLEX, 3, (100, 255, 0), 3, cv.LINE_AA)
 
-        self.frame += 1
+        
         if self.frame == 30:
             self.frame = 0
             self.df["timer"].append(str(timedelta(seconds=int(time.time() - self.tinit))))
             #self.df["timer"].append(int(time.time() - self.tinit))
             self.df["count"].append(len(detect))
-            canvas = FigureCanvasTkAgg(figure, self.layout)
-            canvas.get_tk_widget().grid(row=0,column=3)
+            self.canvas1.get_tk_widget().destroy()
+            self.canvas1 = FigureCanvasTkAgg(figure, self.layout)
+            self.canvas1.get_tk_widget().grid(row=0,column=1)
 
             if len(detect) != 0:
                 Q = len(detect) * air_flow_rate(439)
@@ -186,7 +185,7 @@ class Main:
                 P = infection_prob(q, Q, ((int(time.time() - self.tinit) / 3600)))
                 R = risk_rate(P, ((int(time.time() - self.tinit) / 3600)), qc)
                 risk.append(R)
-        
+        self.frame += 1
         
         image = cv.resize(image,(600,450))
         img = Image.fromarray(cv.cvtColor(image,cv.COLOR_BGR2RGB))
@@ -194,6 +193,7 @@ class Main:
         imgtk = ImageTk.PhotoImage(image = img)
         self.detection.imgtk = imgtk
         self.detection.configure(image=imgtk)
+        ax.clear()
         ax.plot(self.df["timer"], self.df["count"], linewidth=2.0)
         # Repeat after an interval to capture continiously
         self.detection.after(10, self.get_frame)
