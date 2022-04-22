@@ -1,4 +1,3 @@
-#Imports do projeto
 import tkinter
 import cv2 as cv
 from math import e
@@ -25,7 +24,6 @@ videoconfig = []
 risk = [0, 0]
 total_capacity = 20
 
-
 # Carregando o modelo do yolov5("YoloV5s", "YoloV5m", "YoloV5l", "YoloV5xl", "YoloV5s6") disponível na pasta /wheight
 model = torch.hub.load('ultralytics/yolov5', 'yolov5s6')
 model.conf = 0.3
@@ -40,7 +38,7 @@ figure = plt.Figure(figsize=(8,4), dpi=60)
 ax = figure.add_subplot(111)
 
 
-def videofeed(url):
+def videofeed(url): # codifica o link em video para a intrpratação
     streams = streamlink.streams(url)
     feed = streams["best"].url
     return feed
@@ -69,31 +67,48 @@ def risk_rate(P, time, qc):
 
 
 class Main:
+
     def __init__(self):
         self.layout = Tk()
-        self.layout.geometry('1280x800')
         self.layout.eval('tk::PlaceWindow . center')
         self.layout.title("CREM - LPO")
-        self.layout["background"] = "#423C3C"
         self.mount()
         self.layout.mainloop()
     
     def mount(self):
-        self.info1 = Label(self.layout, text= "Para realizar a detecção em link externo, preencha o campo abaixo e clique em DETECT!", font="helvetica 14")
-        self.info1.grid(row=1, column=0, sticky=S, pady=30, padx=30)
-        self.url = Entry(self.layout)
-        self.url.grid(row=2, column=0, sticky=S, pady=30, padx=30)
-        self.info2 = Label(self.layout, text= "Caso queira utilizar a sua própria câmera, basta clicar em DETECT!", font="helvetica 14")
-        self.info2.grid(row=3, column=0, sticky=S, pady=30, padx=30)
-        self.bDetect = Button(self.layout, text="DETECT", command= self.bdPressed)
-        self.bDetect.grid(row=4, column=0, sticky=S, pady=30, padx=30)
+    
+        self.intro = Label(self.layout, text='Bem-Vindo, usuário', font='times=20',  padx=10, pady=10)
+        self.intro.grid(row=1, column=0, sticky=S)
+        self.info = Label(self.layout, text='O programa CREM - LPO consiste em um software que detecta \n a taxa de risco de contaminação em um espaço por meio de \n um link de captura ou da sua própria câmera', font='Times', bg='grey', justify=CENTER)
+        self.info.grid(row=2, column=0, padx=6, pady=6)
+        self.info1 = Label(self.layout, text= "Qual método de detecção deseja utilizar?", font='Times')
+        self.info1.grid(row=4, column=0, sticky=S, pady=10)
+        self.blink = Button(self.layout, text='LINK', command= self.tela_link)
+        self.blink.grid(row= 5, column=0, sticky=S, pady=2, padx=2)
+        self.bCamera = Button(self.layout, text="CÂMERA", command= self.bdPressed)
+        self.bCamera.grid(row=6, column=0, sticky=S, pady=2, padx=2)
+    
+    def tela_link(self):
+        
+        self.blink.destroy()
+        
+        self.url = Entry(self.layout, width=30)
+        self.url.insert(0, 'Digite aqui seu link')
+        self.url.grid(row=5)
+        self.blinkok = Button(self.layout, text='OK', command=self.bdPressed)
+        self.blinkok.place(x=320, y=158)
+        
     
     def bdPressed(self):
+
         link = self.url.get()
+        self.intro.destroy()
         self.info1.destroy()
         self.url.destroy()
-        self.info2.destroy()
-        self.bDetect.destroy()
+        self.info.destroy()
+
+        self.bCamera.destroy()
+        self.blinkok.destroy()
         if link == '':
             self.vFrame(0)
         else:
@@ -107,15 +122,17 @@ class Main:
         self.mount()
 
     def vFrame(self,source):
-        # Escolhe a melhor qualidade de vídeo
+        # PARA MELHORAR O DESIGNER, PRECISAMOS PLOTAR O GRÁFICO JUNTO COM O LAYOUT PRINCIPAL DA PÁGINA, PARA PODER PERSONALIZAR O WIDGET.
+        
+        # Escolhe a melhor qualidade de vídeo:
         self.video = cv.VideoCapture(source)
         w = int(self.video.get(cv.CAP_PROP_FRAME_WIDTH))
         h = int(self.video.get(cv.CAP_PROP_FRAME_HEIGHT))
-        #frame de detecção
+        #frame de detecção        self.detection = Label(self.layout)
         self.detection = Label(self.layout)
         self.detection.grid(row=0, column=0, rowspan = 2, pady=30, padx=30)
-        self.bStop = Button(self.layout, text="STOP", command= self.__del__, font="helvetica 14")
-        self.bStop.grid(row=3, column=0, pady=30)
+        self.bStop = Button(self.layout, text="VOLTAR", command= self.__del__, font="Times")
+        self.bStop.place(x=0, y=0)
 
         # Contadores de frames
         self.tinit = time.time()
@@ -132,6 +149,7 @@ class Main:
         self.canvas1 = FigureCanvasTkAgg(figure, self.layout)
         self.canvas1.get_tk_widget().grid(row=0,column=1)
         self.get_frame()
+        
 
     def get_frame(self):
         self.mask = 0
@@ -185,9 +203,10 @@ class Main:
                 P = infection_prob(q, Q, ((int(time.time() - self.tinit) / 3600)))
                 R = risk_rate(P, ((int(time.time() - self.tinit) / 3600)), qc)
                 risk.append(R)
+                
         self.frame += 1
         
-        image = cv.resize(image,(600,450))
+        image = cv.resize(image,(450,300))
         img = Image.fromarray(cv.cvtColor(image,cv.COLOR_BGR2RGB))
         # Convert image to PhotoImage
         imgtk = ImageTk.PhotoImage(image = img)
