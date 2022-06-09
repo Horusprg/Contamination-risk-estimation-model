@@ -1,7 +1,7 @@
 #Imports do projeto
 import dash
-import dash_core_components as dcc
-import dash_html_components as html
+from dash import dcc
+from dash import html
 from flask import Flask, Response
 import plotly.graph_objects as go
 import plotly.express as px
@@ -10,7 +10,7 @@ from detection import VideoCamera, gen, df, risk, labels
 
 
 #URL do vídeo de stream
-url = "https://youtu.be/IVLD-t_vzeM"
+url = "https://youtu.be/S5NNfl4U3JQ"
 
 server = Flask(__name__)
 app = dash.Dash(__name__, server=server)

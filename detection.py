@@ -5,7 +5,7 @@ import time
 import streamlink
 import torch
 from datetime import timedelta
-
+import csv
 
 # Stream da detecção de vídeo
 def gen(camera):
@@ -48,7 +48,7 @@ df = {"count": [],
       }
 
 # Carregando o modelo do yolov5("YoloV5s", "YoloV5m", "YoloV5l", "YoloV5xl", "YoloV5s6") disponível na pasta /wheight
-model = torch.hub.load('yolov5', 'custom', path='wheight/YoloV5s6.pt', source='local')
+model = torch.hub.load('yolov5', 'custom', path='wheight/yoloV5n6.pt', source='local')
 model.conf = 0.4
 model.iou = 0.4
 
@@ -58,6 +58,11 @@ def videofeed(url):
     feed = streams["best"].url
     return feed
 
+
+with open('data.csv', 'w', newline='') as file:
+                fieldnames = ["count", "bboxes", "timer", "label"]
+                writer = csv.DictWriter(file, fieldnames=fieldnames)
+                writer.writeheader()
 
 # Detecção de vídeo
 class VideoCamera(object):
@@ -106,6 +111,8 @@ class VideoCamera(object):
             df["bboxes"][3].append(ymax)
             df["label"].append(label)
             labels[label] += 1
+            writer.writerow({"bboxes":[xmin, ymin, xmax, ymax], "label":df["label"][-1]})
+            writer.writerow({"timer":df["timer"][-1], "count":df["count"][-1]})
             if label == "with_mask":
                 self.mask += 1
 
@@ -138,6 +145,6 @@ class VideoCamera(object):
                 P = infection_prob(q, Q, ((int(time.time() - self.tinit) / 3600)))
                 R = risk_rate(P, ((int(time.time() - self.tinit) / 3600)), qc)
                 risk.append(R)
-
+        
         ok, jpeg = cv.imencode('.jpg', image)
         return jpeg.tobytes()
