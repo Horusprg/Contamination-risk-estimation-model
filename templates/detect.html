@@ -8,24 +8,9 @@
 </head>
 <body>
     <h1>Olá</h1>
-    {% if request.form['url'] != ''%}
-        <img src="/video_feed" id="videoElement">
-    {% else %}
-        <video autoplay="true" id="videoElement" name="videoElement"></video>
-        <script>
-            var video = document.querySelector("#videoElement");
-
-            if (navigator.mediaDevices.getUserMedia) {
-            navigator.mediaDevices.getUserMedia({ video: true })
-                .then(function (stream) {
-                video.srcObject = stream;
-                })
-                .catch(function (err0r) {
-                console.log("Something went wrong!");
-                });
-            }
-        </script>
-    {% endif %}
-    
+        <img src="/video_feed/{{ qgrate }}/{{ area }}">
+    <h1>Quanta generation rate {{ qgrate }}</h1>
+    <h1>Area {{ area }}</h1>
+    <img src="/plot.png" alt="my plot">
 </body>
 </html>

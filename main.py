@@ -1,25 +1,71 @@
 #Imports do projeto
+from flask import Flask, Response, render_template, request
+import plotly.graph_objects as go
+import plotly.express as px
+from detection import VideoCamera, gen, df, risk, labels
 import dash
 from dash import dcc
 from dash import html
-from flask import Flask, Response
-import plotly.graph_objects as go
-import plotly.express as px
 from dash.dependencies import Output, Input
-from detection import VideoCamera, gen, df, risk, labels
-
-
-#URL do vídeo de stream
-url = "https://youtu.be/S5NNfl4U3JQ"
+import flask
 
 server = Flask(__name__)
-app = dash.Dash(__name__, server=server)
+qgrate = 0
+area = 0
+@server.route('/')
+def index():
+    return render_template('index.html')
+
+"""
+@server.route('/detect', methods=['POST'])
+def detect():
+    area = request.form["area"]
+    qgrate = request.form["qgrate"]
+    quantas = {'sars-cov-2':2.3666, }
+    return render_template('detect.html', qgrate=quantas[qgrate], area=area)
+"""
 
 @server.route('/video_feed')
-
 def video_feed():
-    return Response(gen(VideoCamera(url)),
+    return Response(gen(VideoCamera(qgrate, area)),
                     mimetype='multipart/x-mixed-replace; boundary=frame')
+
+#detection
+app = dash.Dash(server=server, url_base_pathname='/detect/')
+@app.server.route('/post', methods=['POST'])
+def on_post():
+    global area
+    global qgrate
+    area = request.form["area"]
+    qgrate = request.form["qgrate"]
+    quantas = {'sars-cov-2':2.3666, }
+    qgrate = quantas[qgrate]
+    return flask.redirect('/detect/')
+
+app.layout = html.Div(
+    className= "layout",
+    children=[
+        html.Div(className="head",
+        children=[
+            html.H5("MONITORAMENTO DE LOCAL", className="anim-typewriter"),
+            html.Img(className="button",src="assets/Group 3.png"),
+            html.H4("AMBIENTE"),
+            html.Img(className= "video",src="/video_feed"),
+        ]),
+        html.Div("CLASSES", className="classes"),
+        html.H3("PESSOAS AO LONGO DO DIA", className="contPess"),
+        dcc.Graph(id='live-update-graph', className='contagem'),
+        html.H3("MAPA DE OCUPAÇÃO", className="contPess2d"),
+        dcc.Graph(id='live-update-3d', className='contagem3d'),
+        dcc.Graph(id='live-velocimeter', className='velocimeter'),
+        dcc.Graph(id='live-pie', className='pie'),
+        dcc.Interval(
+            id='interval-component',
+            interval=1*1000,
+            n_intervals=0
+            )
+    ]
+)
 
 @app.callback(
             Output('live-update-graph', 'figure'),
@@ -84,31 +130,6 @@ def pie(n_intervals):
     fig.update_layout(legend_font_size = 32,paper_bgcolor = "rgb(3, 7, 15)")
     
     return fig
-
-app.layout = html.Div(
-    className= "layout",
-    children=[
-        html.Div(className="head",
-        children=[
-            html.H5("MONITORAMENTO DE LOCAL", className="anim-typewriter"),
-            html.Img(className="button",src="assets/Group 3.png"),
-            html.H4("AMBIENTE"),
-            html.Img(className= "video",src="/video_feed"),
-        ]),
-        html.Div("CLASSES", className="classes"),
-        html.H3("PESSOAS AO LONGO DO DIA", className="contPess"),
-        dcc.Graph(id='live-update-graph', className='contagem'),
-        html.H3("MAPA DE OCUPAÇÃO", className="contPess2d"),
-        dcc.Graph(id='live-update-3d', className='contagem3d'),
-        dcc.Graph(id='live-velocimeter', className='velocimeter'),
-        dcc.Graph(id='live-pie', className='pie'),
-        dcc.Interval(
-            id='interval-component',
-            interval=1*1000,
-            n_intervals=0
-            )
-    ]
-)
 
 if __name__ == '__main__':
     app.run_server(debug=True)

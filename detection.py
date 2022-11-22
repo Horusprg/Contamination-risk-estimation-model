@@ -35,40 +35,53 @@ def risk_rate(P, time, qc):
     R = 100 * (1 - pow(e, (-P * time * qc / 60)))
     return R
 
+def csv_save(test):
+    with open("test.csv", "w") as outfile:
+   
+        # pass the csv file to csv.writer.
+        writer = csv.writer(outfile)
+        
+        # convert the dictionary keys to a list
+        key_list = list(test.keys())
+        
+        # find the length of the key_list
+        limit = len(key_list)
+        
+        # the length of the keys corresponds to
+        # no. of. columns.
+        writer.writerow(test.keys())
+        
+        # iterate each column and assign the
+        # corresponding values to the column
+        for i in range(limit):
+            writer.writerow([test[x][i] for x in key_list])
+
 
 # Variáveis de dados
 videoconfig = []
 risk = [0, 0]
-total_capacity = 20
+
 labels = {"with_mask": 0, "without_mask": 0, "mask_weared_incorrect": 0}
 df = {"count": [],
       "bboxes": [[], [], [], []],
       "timer": [],
-      "label": []
+      "label": [],
+      "risk": []
       }
 
 # Carregando o modelo do yolov5("YoloV5s", "YoloV5m", "YoloV5l", "YoloV5xl", "YoloV5s6") disponível na pasta /wheight
 model = torch.hub.load('yolov5', 'custom', path='wheight/yoloV5n6.pt', source='local')
-model.conf = 0.4
-model.iou = 0.4
+model.conf = 0.5
+model.iou = 0.5
 
-
-def videofeed(url):
-    streams = streamlink.streams(url)
-    feed = streams["best"].url
-    return feed
-
-
-with open('data.csv', 'w', newline='') as file:
-                fieldnames = ["count", "bboxes", "timer", "label"]
-                writer = csv.DictWriter(file, fieldnames=fieldnames)
-                writer.writeheader()
 
 # Detecção de vídeo
 class VideoCamera(object):
-    def __init__(self, url):
+    def __init__(self, qgrate, area):
         # Escolhe a melhor qualidade de vídeo
-        self.video = cv.VideoCapture(videofeed(url))
+        self.video = cv.VideoCapture(0)
+        self.qgrate = qgrate
+        self.area = area
         # Contadores de frames
         self.tinit = time.time()
         self.prev_frame_time = 0
@@ -88,6 +101,8 @@ class VideoCamera(object):
         df["count"].append(0)
         df["label"].append(None)
         df["timer"].append(0)
+        df["risk"].append(0)
+        df["risk"].append(0)
 
     def __del__(self):
         self.video.release()
@@ -111,13 +126,11 @@ class VideoCamera(object):
             df["bboxes"][3].append(ymax)
             df["label"].append(label)
             labels[label] += 1
-            writer.writerow({"bboxes":[xmin, ymin, xmax, ymax], "label":df["label"][-1]})
-            writer.writerow({"timer":df["timer"][-1], "count":df["count"][-1]})
             if label == "with_mask":
                 self.mask += 1
 
         # Volume de um escritório padrão
-        volume = 9.29 * 2.70 * total_capacity
+        volume = int(self.area) * 3
         # volume = local_height*local_width*local_height
 
         # Imprime o contador pessoas detectadas por frame
@@ -140,11 +153,12 @@ class VideoCamera(object):
 
             if len(detect) != 0:
                 Q = len(detect) * air_flow_rate(439)
-                q = 2.3666 * (0.4 + 0.6 * (len(detect) - self.mask) / (len(detect)))
+                q = float(self.qgrate) * (0.4 + 0.6 * (len(detect) - self.mask) / (len(detect)))
                 qc = quanta_concentration(q, Q, ((int(time.time() - self.tinit) / 3600)), volume)
                 P = infection_prob(q, Q, ((int(time.time() - self.tinit) / 3600)))
                 R = risk_rate(P, ((int(time.time() - self.tinit) / 3600)), qc)
                 risk.append(R)
+                df["risk"].append(R)
         
         ok, jpeg = cv.imencode('.jpg', image)
         return jpeg.tobytes()
