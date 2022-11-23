@@ -59,6 +59,8 @@ app.layout = html.Div(
         dcc.Graph(id='live-update-3d', className='contagem3d'),
         dcc.Graph(id='live-velocimeter', className='velocimeter'),
         dcc.Graph(id='live-pie', className='pie'),
+        html.Div([html.Button("Download CSV", id="btn_csv"),
+                    dcc.Download(id="download-dataframe-csv")]),
         dcc.Interval(
             id='interval-component',
             interval=1*1000,
@@ -130,6 +132,16 @@ def pie(n_intervals):
     fig.update_layout(legend_font_size = 32,paper_bgcolor = "rgb(3, 7, 15)")
     
     return fig
+
+@app.callback(
+    Output("download-dataframe-csv", "data"),
+    Input("btn_csv", "n_clicks"),
+    prevent_initial_call=True,
+)
+def func(n_clicks):
+    import pandas as pd
+    dataframe = pd.DataFrame.from_dict(df, orient='index')
+    return dcc.send_data_frame(dataframe.to_csv, "data.csv")
 
 if __name__ == '__main__':
     app.run_server(debug=True)
