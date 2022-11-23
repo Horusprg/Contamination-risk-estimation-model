@@ -63,7 +63,7 @@ risk = [0, 0]
 
 labels = {"with_mask": 0, "without_mask": 0, "mask_weared_incorrect": 0}
 df = {"count": [],
-      "bboxes": [[], [], [], []],
+      "bboxes": [],
       "timer": [],
       "label": [],
       "risk": []
@@ -87,21 +87,12 @@ class VideoCamera(object):
         self.prev_frame_time = 0
         self.mask = 0
         self.frame = 0
-        df["bboxes"][0].append(int(self.video.get(cv.CAP_PROP_FRAME_WIDTH)))
-        df["bboxes"][1].append(int(self.video.get(cv.CAP_PROP_FRAME_HEIGHT)))
-        df["bboxes"][2].append(int(self.video.get(cv.CAP_PROP_FRAME_WIDTH)))
-        df["bboxes"][3].append(int(self.video.get(cv.CAP_PROP_FRAME_HEIGHT)))
+        df["bboxes"].append([0,0,
+                            int(self.video.get(cv.CAP_PROP_FRAME_WIDTH)),
+                            int(self.video.get(cv.CAP_PROP_FRAME_HEIGHT))])
         df["count"].append(0)
-        df["label"].append(None)
+        df["label"].append(0)
         df["timer"].append(0)
-        df["bboxes"][0].append(0)
-        df["bboxes"][1].append(0)
-        df["bboxes"][2].append(0)
-        df["bboxes"][3].append(0)
-        df["count"].append(0)
-        df["label"].append(None)
-        df["timer"].append(0)
-        df["risk"].append(0)
         df["risk"].append(0)
 
     def __del__(self):
@@ -113,6 +104,8 @@ class VideoCamera(object):
         detect = model(image)
         detect = detect.pandas().xyxy[0]
         detect = detect.to_numpy()
+        auxbboxes = []
+        auxlabels = []
         for people in detect:
             xmin, ymin, xmax, ymax, confidence, label = int(people[0]), int(people[1]), int(people[2]), int(people[3]), \
                                                         people[4], people[6]
@@ -120,15 +113,13 @@ class VideoCamera(object):
                        (0, 255, 0), 1, cv.LINE_AA)
             cv.putText(image, label, (xmax + 20, ymin + 30), cv.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 1, cv.LINE_AA)
             cv.rectangle(image, (xmin, ymin), (xmax, ymax), (0, 0, 255), 2)
-            df["bboxes"][0].append(xmin)
-            df["bboxes"][1].append(ymin)
-            df["bboxes"][2].append(xmax)
-            df["bboxes"][3].append(ymax)
-            df["label"].append(label)
+            auxbboxes.append([xmin,ymin,xmax,ymax])
+
+            auxlabels.append(label)
             labels[label] += 1
             if label == "with_mask":
                 self.mask += 1
-
+                
         # Volume de um escritório padrão
         volume = int(self.area) * 3
         # volume = local_height*local_width*local_height
@@ -148,6 +139,8 @@ class VideoCamera(object):
         self.frame += 1
         if self.frame == 30:
             self.frame = 0
+            df["bboxes"].append(auxbboxes)
+            df["label"].append(auxlabels)
             df["timer"].append(str(timedelta(seconds=int(time.time() - self.tinit))))
             df["count"].append(len(detect))
 
@@ -159,6 +152,8 @@ class VideoCamera(object):
                 R = risk_rate(P, ((int(time.time() - self.tinit) / 3600)), qc)
                 risk.append(R)
                 df["risk"].append(R)
+            else:
+                df["risk"].append(0)
         
         ok, jpeg = cv.imencode('.jpg', image)
         return jpeg.tobytes()

@@ -140,7 +140,7 @@ def pie(n_intervals):
 )
 def func(n_clicks):
     import pandas as pd
-    dataframe = pd.DataFrame.from_dict(df, orient='index')
+    dataframe = pd.DataFrame.from_dict(df)
     return dcc.send_data_frame(dataframe.to_csv, "data.csv")
 
 if __name__ == '__main__':
