@@ -63,7 +63,10 @@ risk = [0, 0]
 
 labels = {"with_mask": 0, "without_mask": 0, "mask_weared_incorrect": 0}
 df = {"count": [],
-      "bboxes": [],
+      "bbox_x0": [],
+      "bbox_y0": [],
+      "bbox_xi": [],
+      "bbox_yi": [],
       "timer": [],
       "label": [],
       "risk": []
@@ -87,9 +90,10 @@ class VideoCamera(object):
         self.prev_frame_time = 0
         self.mask = 0
         self.frame = 0
-        df["bboxes"].append([0,0,
-                            int(self.video.get(cv.CAP_PROP_FRAME_WIDTH)),
-                            int(self.video.get(cv.CAP_PROP_FRAME_HEIGHT))])
+        df["bbox_x0"].append([0])
+        df["bbox_y0"].append([0])
+        df["bbox_xi"].append([2*float(self.video.get(cv.CAP_PROP_FRAME_WIDTH))])
+        df["bbox_yi"].append([2*float(self.video.get(cv.CAP_PROP_FRAME_HEIGHT))])
         df["count"].append(0)
         df["label"].append(0)
         df["timer"].append(0)
@@ -104,7 +108,12 @@ class VideoCamera(object):
         detect = model(image)
         detect = detect.pandas().xyxy[0]
         detect = detect.to_numpy()
-        auxbboxes = []
+        auxbboxes = {
+                    "x0":[],
+                    "y0":[],
+                    "xi":[],
+                    "yi":[]
+                    }
         auxlabels = []
         for people in detect:
             xmin, ymin, xmax, ymax, confidence, label = int(people[0]), int(people[1]), int(people[2]), int(people[3]), \
@@ -113,7 +122,10 @@ class VideoCamera(object):
                        (0, 255, 0), 1, cv.LINE_AA)
             cv.putText(image, label, (xmax + 20, ymin + 30), cv.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 1, cv.LINE_AA)
             cv.rectangle(image, (xmin, ymin), (xmax, ymax), (0, 0, 255), 2)
-            auxbboxes.append([xmin,ymin,xmax,ymax])
+            auxbboxes["x0"].append(float(xmin))
+            auxbboxes["y0"].append(float(ymin))
+            auxbboxes["xi"].append(float(xmax))
+            auxbboxes["yi"].append(float(ymax))
 
             auxlabels.append(label)
             labels[label] += 1
@@ -127,19 +139,14 @@ class VideoCamera(object):
         # Imprime o contador pessoas detectadas por frame
         cv.putText(image, str(len(detect)) + " Pessoas", (100, 80),
                    cv.FONT_HERSHEY_SIMPLEX, .75, (8, 0, 255), 2)
-        # quantos self. por frame
-
-        new_frame_time = time.time()
-        fps = 1 / (new_frame_time - self.prev_frame_time)
-        self.prev_frame_time = new_frame_time
-        fps = int(fps)
-        fps = str(fps)
-        cv.putText(image, fps, (7, 70), cv.FONT_HERSHEY_SIMPLEX, 3, (100, 255, 0), 3, cv.LINE_AA)
 
         self.frame += 1
         if self.frame == 30:
             self.frame = 0
-            df["bboxes"].append(auxbboxes)
+            df["bbox_x0"].append(auxbboxes["x0"])
+            df["bbox_y0"].append(auxbboxes["y0"])
+            df["bbox_xi"].append(auxbboxes["xi"])
+            df["bbox_yi"].append(auxbboxes["yi"])
             df["label"].append(auxlabels)
             df["timer"].append(str(timedelta(seconds=int(time.time() - self.tinit))))
             df["count"].append(len(detect))

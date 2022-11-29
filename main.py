@@ -2,35 +2,32 @@
 from flask import Flask, Response, render_template, request
 import plotly.graph_objects as go
 import plotly.express as px
-from detection import VideoCamera, gen, df, risk, labels
+from detection import VideoCamera, gen, df, risk, labels, videoconfig
 import dash
 from dash import dcc
 from dash import html
 from dash.dependencies import Output, Input
 import flask
 
-server = Flask(__name__)
+#variáveis de entrada
 qgrate = 0
 area = 0
+
+#Iniciando o servidor
+server = Flask(__name__)
+
+#Página inicial
 @server.route('/')
 def index():
     return render_template('index.html')
 
-"""
-@server.route('/detect', methods=['POST'])
-def detect():
-    area = request.form["area"]
-    qgrate = request.form["qgrate"]
-    quantas = {'sars-cov-2':2.3666, }
-    return render_template('detect.html', qgrate=quantas[qgrate], area=area)
-"""
-
+#Rota de transmissão de vídeo
 @server.route('/video_feed')
 def video_feed():
     return Response(gen(VideoCamera(qgrate, area)),
                     mimetype='multipart/x-mixed-replace; boundary=frame')
 
-#detection
+#Página de detecção
 app = dash.Dash(server=server, url_base_pathname='/detect/')
 @app.server.route('/post', methods=['POST'])
 def on_post():
@@ -38,25 +35,26 @@ def on_post():
     global qgrate
     area = request.form["area"]
     qgrate = request.form["qgrate"]
+    #Dicionário dos quantas disponíveis
     quantas = {'sars-cov-2':2.3666, }
     qgrate = quantas[qgrate]
     return flask.redirect('/detect/')
 
+#Layout do web app de detecção
 app.layout = html.Div(
     className= "layout",
     children=[
         html.Div(className="head",
         children=[
             html.H5("MONITORAMENTO DE LOCAL", className="anim-typewriter"),
-            html.Img(className="button",src="assets/Group 3.png"),
             html.H4("AMBIENTE"),
             html.Img(className= "video",src="/video_feed"),
         ]),
         html.Div("CLASSES", className="classes"),
         html.H3("PESSOAS AO LONGO DO DIA", className="contPess"),
-        dcc.Graph(id='live-update-graph', className='contagem'),
+        dcc.Graph(id='live-peopleCount', className='contagem'),
         html.H3("MAPA DE OCUPAÇÃO", className="contPess2d"),
-        dcc.Graph(id='live-update-3d', className='contagem3d'),
+        dcc.Graph(id='live-peopleHeatmap', className='contagem3d'),
         dcc.Graph(id='live-velocimeter', className='velocimeter'),
         dcc.Graph(id='live-pie', className='pie'),
         html.Div([html.Button("Download CSV", id="btn_csv"),
@@ -70,11 +68,10 @@ app.layout = html.Div(
 )
 
 @app.callback(
-            Output('live-update-graph', 'figure'),
+            Output('live-peopleCount', 'figure'),
             [Input('interval-component', "n_intervals")]
             )
-
-def update_graph(n_intervals):
+def peopleCount(n_intervals):
     fig = go.Figure(layout={"template":"plotly_dark"})
     fig.add_trace(go.Bar(x=df["timer"], y=df["count"]))
     fig.update_layout(
@@ -85,16 +82,25 @@ def update_graph(n_intervals):
         )
     return fig
 
+
 @app.callback(
-            Output('live-update-3d', 'figure'),
+            Output('live-peopleHeatmap', 'figure'),
             [Input('interval-component', "n_intervals")]
             )
 
-def update_3d(n_intervals):
+def peopleHeatmap(n_intervals):
+    x0 = list(filter(None, df["bbox_x0"]))
+    xi = list(filter(None, df["bbox_xi"]))
+    y0 = list(filter(None, df["bbox_y0"]))
+    yi = list(filter(None, df["bbox_yi"]))
     fig = go.Figure(go.Histogram2d(
-                    x=(df["bboxes"][0]),
-                    y=(list(map(lambda x: -x, df["bboxes"][1]))),
-                    z=(df["count"])
+                    x=(list(map(lambda x,y: (x[0]+y[0])/2, x0, xi))),
+                    y=(list(map(lambda x,y: (x[0]+y[0])/2, y0, yi))),
+                    histnorm='percent',
+                    autobinx=False,
+                    xbins=dict(start=0, size=5),
+                    autobiny=False,
+                    ybins=dict(start=0, size=5)
     ))
     return fig
 
